@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SXTream Live Chat - Customer</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8fafc;
+            color: #1e293b;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 24px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 32px;
+            padding-top: 20px;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin-bottom: 8px;
+        }
+
+        .page-subtitle {
+            color: #64748b;
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+
+        .admin-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #10b981;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            padding: 8px 16px;
+            border: 1px solid #10b981;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .admin-link:hover {
+            background: #10b981;
+            color: white;
+        }
+
+        .chat-card {
+            background: white;
+            border: 2px solid #e2e8f0;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .connection-status {
+            padding: 12px 24px;
+            text-align: center;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .connection-status.connected {
+            background: #dcfce7;
+            color: #166534;
+            border-bottom: 1px solid #bbf7d0;
+        }
+
+        .connection-status.disconnected {
+            background: #fef2f2;
+            color: #dc2626;
+            border-bottom: 1px solid #fecaca;
+        }
+
+        .connection-status.connecting {
+            background: #fef3c7;
+            color: #d97706;
+            border-bottom: 1px solid #fed7aa;
+        }
+
+        .form-section {
+            padding: 32px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1e293b;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 8px;
+            color: #374151;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 14px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+            background: #f9fafb;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #10b981;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .loading {
+            display: none;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .info-box {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .info-box i {
+            color: #0ea5e9;
+            font-size: 16px;
+        }
+
+        .info-box p {
+            color: #0c4a6e;
+            font-size: 14px;
+            margin: 0;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #fafbfc;
+            border-top: 1px solid #e2e8f0;
+            border-bottom: 1px solid #e2e8f0;
+            min-height: 400px;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            display: flex;
+            align-items: flex-end;
+            gap: 8px;
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-bubble {
+            max-width: 75%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            font-size: 14px;
+            line-height: 1.4;
+            position: relative;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.cs .message-bubble {
+            background: white;
+            color: #1e293b;
+            border: 1px solid #e2e8f0;
+            border-bottom-left-radius: 4px;
+        }
+
+        .message.system .message-bubble {
+            background: #f1f5f9;
+            color: #64748b;
+            text-align: center;
+            font-style: italic;
+            border-radius: 12px;
+            margin: 0 auto;
+        }
+
+        .message-time {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 4px;
+        }
+
+        .message.cs .message-time {
+            color: #94a3b8;
+        }
+
+        .message.system .message-time {
+            color: #94a3b8;
+        }
+
+        .chat-input {
+            padding: 20px;
+            background: white;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 12px;
+            align-items: flex-end;
+        }
+
+        .message-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 24px;
+            outline: none;
+            font-size: 14px;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+            background: #f9fafb;
+        }
+
+        .message-input:focus {
+            border-color: #10b981;
+            background: white;
+            box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+        }
+
+        .send-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            transform: scale(1.05);
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+        }
+
+        .typing-indicator {
+            padding: 12px 20px;
+            color: #64748b;
+            font-style: italic;
+            font-size: 13px;
+            background: #fafbfc;
+            display: none;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .typing-indicator.show {
+            display: block;
+        }
+
+        .typing-dots {
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #64748b;
+            animation: typing 1.4s infinite ease-in-out both;
+            margin-right: 2px;
+        }
+
+        .typing-dots:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dots:nth-child(2) { animation-delay: -0.16s; }
+
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+
+        .welcome-message {
+            text-align: center;
+            padding: 60px 20px;
+            color: #64748b;
+        }
+
+        .welcome-message i {
+            font-size: 64px;
+            color: #10b981;
+            margin-bottom: 20px;
+            opacity: 0.8;
+        }
+
+        .welcome-message h3 {
+            color: #1e293b;
+            margin-bottom: 8px;
+            font-size: 18px;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                padding: 16px;
+            }
+
+            .page-header h1 {
+                font-size: 2rem;
+            }
+
+            .form-section {
+                padding: 24px;
+            }
+
+            .chat-messages {
+                min-height: 300px;
+                padding: 16px;
+            }
+        }
+
+        /* Scrollbar Styling */
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .chat-messages::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .chat-messages::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="page-header">
+            <h1><i class="fas fa-comments" style="color: #10b981;"></i> Live Chat</h1>
+            <p class="page-subtitle">Hubungi customer service kami secara real-time</p>
+            <a href="/admin.html" class="admin-link">
+                <i class="fas fa-cog"></i>
+                Admin Dashboard
+            </a>
+        </div>
+
+        <div class="chat-card">
+            <div class="connection-status connecting" id="connectionStatus">
+                <i class="fas fa-circle-notch fa-spin"></i> Connecting to server...
+            </div>
+
+            <!-- User Form -->
+            <div class="form-section" id="userForm">
+                <div class="card-header">
+                    <i class="fas fa-user-plus" style="color: #10b981;"></i>
+                    <h3 class="card-title">Mulai Percakapan</h3>
+                </div>
+
+                <div class="info-box">
+                    <i class="fas fa-info-circle"></i>
+                    <p>Lengkapi informasi di bawah untuk memulai chat dengan customer service kami</p>
+                </div>
+
+                <form id="customerForm">
+                    <div class="form-group">
+                        <label for="userName" class="form-label">Nama Lengkap</label>
+                        <input type="text" id="userName" class="form-control" placeholder="Masukkan nama lengkap Anda" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="userUsername" class="form-label">Username</label>
+                        <input type="text" id="userUsername" class="form-control" placeholder="Masukkan username Anda" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="userEmail" class="form-label">Email</label>
+                        <input type="email" id="userEmail" class="form-control" placeholder="nama@email.com" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="userSubject" class="form-label">Kategori Bantuan</label>
+                        <select id="userSubject" class="form-control" required>
+                            <option value="">Pilih kategori bantuan...</option>
+                            <option value="api">Pertanyaan API</option>
+                            <option value="technical">Masalah Teknis</option>
+                            <option value="billing">Billing & Pembayaran</option>
+                            <option value="general">Pertanyaan Umum</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary" id="startChatBtn">
+                        <div class="loading" id="loading"></div>
+                        <i class="fas fa-paper-plane" id="startIcon"></i>
+                        <span id="startBtnText">Mulai Chat</span>
+                    </button>
+                </form>
+            </div>
+
+            <!-- Chat Messages -->
+            <div class="chat-messages" id="chatMessages" style="display: none;">
+                <div class="welcome-message">
+                    <i class="fas fa-comments"></i>
+                    <h3>Selamat Datang!</h3>
+                    <p>Chat Anda akan dimulai sebentar lagi...</p>
+                </div>
+            </div>
+
+            <!-- Typing Indicator -->
+            <div class="typing-indicator" id="typingIndicator">
+                <i class="fas fa-user-headset"></i> Customer Service sedang mengetik
+                <span class="typing-dots"></span>
+                <span class="typing-dots"></span>
+                <span class="typing-dots"></span>
+            </div>
+
+            <!-- Chat Input -->
+            <div class="chat-input" id="chatInput" style="display: none;">
+                <div class="input-group">
+                    <textarea class="message-input" id="messageInput" placeholder="Ketik pesan Anda..." rows="1" onkeypress="handleKeyPress(event)" oninput="handleTyping(); autoResize(this)"></textarea>
+                    <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let currentChatId = null;
+        let currentUser = {};
+        let typingTimeout = null;
+        let isConnected = false;
+
+        // Initialize connection
+        function initializeConnection() {
+            socket = io();
+            
+            socket.on('connect', () => {
+                console.log('Connected to server');
+                isConnected = true;
+                updateConnectionStatus('connected', '<i class="fas fa-check-circle"></i> Connected to server');
+                document.getElementById('startChatBtn').disabled = false;
+            });
+
+            socket.on('disconnect', () => {
+                console.log('Disconnected from server');
+                isConnected = false;
+                updateConnectionStatus('disconnected', '<i class="fas fa-times-circle"></i> Disconnected from server');
+                document.getElementById('startChatBtn').disabled = true;
+            });
+
+            socket.on('connect_error', () => {
+                updateConnectionStatus('disconnected', '<i class="fas fa-exclamation-triangle"></i> Connection failed');
+            });
+
+            // Chat events
+            socket.on('chat-started', (data) => {
+                currentChatId = data.chatId;
+                document.getElementById('userForm').style.display = 'none';
+                document.getElementById('chatMessages').style.display = 'block';
+                document.getElementById('chatInput').style.display = 'block';
+                
+                // Clear welcome message
+                document.getElementById('chatMessages').innerHTML = '';
+                
+                addMessage(data.message.text, 'cs');
+                document.getElementById('messageInput').focus();
+                
+                // Reset button
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('startIcon').style.display = 'inline-block';
+                document.getElementById('startBtnText').textContent = 'Mulai Chat';
+                document.getElementById('startChatBtn').disabled = false;
+            });
+
+            socket.on('new-message', (data) => {
+                if (data.chatId === currentChatId) {
+                    addMessage(data.message.text, data.message.type);
+                }
+            });
+
+            socket.on('agent-typing', (data) => {
+                if (data.chatId === currentChatId) {
+                    showTypingIndicator();
+                }
+            });
+
+            socket.on('agent-typing-stop', (data) => {
+                if (data.chatId === currentChatId) {
+                    hideTypingIndicator();
+                }
+            });
+
+            socket.on('chat-ended', (data) => {
+                if (data.chatId === currentChatId) {
+                    addMessage(data.message.text, 'system');
+                    document.getElementById('chatInput').style.display = 'none';
+                    
+                    // Show restart option
+                    setTimeout(() => {
+                        const restartBtn = document.createElement('div');
+                        restartBtn.innerHTML = `
+                            <div style="text-align: center; padding: 20px;">
+                                <button class="btn btn-primary" onclick="location.reload()">
+                                    <i class="fas fa-redo"></i> Mulai Chat Baru
+                                </button>
+                            </div>
+                        `;
+                        document.getElementById('chatMessages').appendChild(restartBtn);
+                    }, 2000);
+                }
+            });
+        }
+
+        // Connection status
+        function updateConnectionStatus(status, message) {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.className = `connection-status ${status}`;
+            statusEl.innerHTML = message;
+        }
+
+        // Form submission
+        document.getElementById('customerForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            startChat();
+        });
+
+        function startChat() {
+            const name = document.getElementById('userName').value.trim();
+            const username = document.getElementById('userUsername').value.trim();
+            const email = document.getElementById('userEmail').value.trim();
+            const subject = document.getElementById('userSubject').value;
+
+            if (!name || !username || !email || !subject) {
+                showNotification('Mohon lengkapi semua field yang diperlukan', 'error');
+                return;
+            }
+
+            const usernameRegex = /^[a-zA-Z0-9_]+$/;
+            if (!usernameRegex.test(username)) {
+                showNotification('Username hanya boleh mengandung huruf, angka, dan underscore', 'error');
+                return;
+            }
+
+            if (!isConnected) {
+                showNotification('Tidak dapat terhubung ke server. Mohon coba lagi.', 'error');
+                return;
+            }
+
+            currentUser = { name, username, email, subject };
+            
+            // Show loading
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('startIcon').style.display = 'none';
+            document.getElementById('startBtnText').textContent = 'Connecting...';
+            document.getElementById('startChatBtn').disabled = true;
+            
+            socket.emit('join-as-customer', currentUser);
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || !currentChatId || !isConnected) return;
+
+            addMessage(message, 'user');
+            input.value = '';
+            autoResize(input);
+
+            socket.emit('customer-message', {
+                chatId: currentChatId,
+                message: message
+            });
+
+            socket.emit('typing-stop', { chatId: currentChatId });
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        function handleTyping() {
+            if (!currentChatId || !isConnected) return;
+
+            socket.emit('typing-start', { chatId: currentChatId });
+
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                socket.emit('typing-stop', { chatId: currentChatId });
+            }, 1000);
+        }
+
+        function addMessage(message, sender) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const currentTime = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
+            messageDiv.innerHTML = `
+                <div class="message-bubble">
+                    ${message}
+                    <div class="message-time">${currentTime}</div>
+                </div>
+            `;
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            document.getElementById('typingIndicator').classList.add('show');
+        }
+
+        function hideTypingIndicator() {
+            document.getElementById('typingIndicator').classList.remove('show');
+        }
+
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+        }
+
+        function showNotification(message, type = 'info') {
+            alert(message); // Simple notification - can be enhanced
+        }
+
+        // Initialize when page loads
+        window.addEventListener('DOMContentLoaded', function() {
+            initializeConnection();
+        });
+    </script>
+</body>
+</html>
