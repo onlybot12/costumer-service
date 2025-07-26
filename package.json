@@ -1,0 +1,21 @@
+{
+  "name": "sxtream-chat-system",
+  "version": "1.0.0",
+  "description": "Real-time chat system with Socket.IO",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "dev": "nodemon server.js",
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "socket.io": "^4.7.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": ["chat", "socket.io", "real-time", "customer-service"],
+  "author": "SXTream",
+  "license": "MIT"
+}
